@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="ko">
+제<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>상용 AI 도입 견적 계산기</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel2:#1e222b; --line:#2a2f3a;
+    --txt:#e8eaf0; --mut:#9aa3b2; --acc:#6c8cff; --acc2:#8b5cf6;
+    --green:#36c98c; --amber:#f0b429; --red:# f06070; --red:#ff6b7a;
+    --anthropic:#d97757; --openai:#10a37f; --google:#4285f4;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:linear-gradient(180deg,#0c0e13,#0f1115);color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Segoe UI",Roboto,sans-serif;
+    line-height:1.5;padding:0 0 80px}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 20px}
+  header{padding:38px 0 18px;border-bottom:1px solid var(--line);margin-bottom:26px}
+  h1{font-size:26px;margin:0 0 6px;font-weight:800;letter-spacing:-.3px}
+  .sub{color:var(--mut);font-size:14px}
+  .badge{display:inline-block;font-size:11px;color:var(--mut);border:1px solid var(--line);
+    border-radius:999px;padding:3px 10px;margin-left:8px;vertical-align:middle}
+  .grid{display:grid;grid-template-columns:1fr 360px;gap:24px;align-items:start}
+  @media(max-width:920px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px}
+  .card h2{font-size:15px;margin:0 0 14px;font-weight:700;display:flex;align-items:center;gap:8px}
+  .muted{color:var(--mut);font-size:13px}
+
+  /* team rows */
+  .row{display:grid;grid-template-columns:1.3fr .7fr 2fr 1fr 34px;gap:10px;align-items:center;
+    padding:10px;border:1px solid var(--line);border-radius:12px;margin-bottom:10px;background:var(--panel2)}
+  .row .lbl{display:none}
+  .rowhead{display:grid;grid-template-columns:1.3fr .7fr 2fr 1fr 34px;gap:10px;
+    padding:0 10px 6px;font-size:11px;color:var(--mut);font-weight:600}
+  @media(max-width:720px){
+    .row{grid-template-columns:1fr 1fr;gap:8px}
+    .row .lbl{display:block;font-size:10px;color:var(--mut);margin-bottom:3px}
+    .row .full{grid-column:1/-1}
+    .rowhead{display:none}
+  }
+  input,select{width:100%;background:#10131a;border:1px solid var(--line);color:var(--txt);
+    border-radius:9px;padding:9px 10px;font-size:13px;font-family:inherit;outline:none}
+  input:focus,select:focus{border-color:var(--acc)}
+  input[type=number]{-moz-appearance:textfield;appearance:textfield}
+  .rowcost{font-size:12px;color:var(--mut);text-align:right;grid-column:1/-1;margin-top:-4px}
+  .del{background:#231a1d;border:1px solid #3a2a2e;color:#ff8d99;border-radius:9px;
+    height:38px;cursor:pointer;font-size:16px}
+  .del:hover{background:#2e2024}
+
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+  .btn{background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:999px;
+    padding:8px 14px;font-size:12.5px;cursor:pointer;transition:.15s}
+  .btn:hover{border-color:var(--acc);color:#fff}
+  .btn.primary{background:linear-gradient(90deg,var(--acc),var(--acc2));border:none;font-weight:700}
+  .presets{margin:14px 0 4px}
+  .presets .muted{margin-bottom:6px}
+  .chip{background:#10131a;border:1px dashed var(--line);color:var(--mut);border-radius:999px;
+    padding:6px 12px;font-size:12px;cursor:pointer}
+  .chip:hover{border-color:var(--acc);color:#fff;border-style:solid}
+
+  /* summary */
+  .summary{position:sticky;top:18px}
+  .total{font-size:34px;font-weight:800;letter-spacing:-.5px;margin:4px 0}
+  .total small{font-size:14px;color:var(--mut);font-weight:600}
+  .totline{display:flex;justify-content:space-between;font-size:13px;padding:7px 0;border-top:1px solid var(--line)}
+  .totline.year{color:var(--green);font-weight:700;font-size:15px}
+  .totline.tok{border-top:none;padding-top:0;color:var(--mut);font-size:12px}
+  .totline.tok span:last-child{color:var(--txt);font-weight:600}
+  .seg{display:flex;background:#10131a;border:1px solid var(--line);border-radius:10px;padding:3px;margin-bottom:14px}
+  .seg button{flex:1;background:none;border:none;color:var(--mut);padding:7px;border-radius:7px;cursor:pointer;font-size:13px;font-weight:600}
+  .seg button.on{background:var(--acc);color:#fff}
+  .vend{display:flex;align-items:center;gap:8px;font-size:12.5px;padding:6px 0}
+  .dot{width:9px;height:9px;border-radius:50%}
+  .warn{background:#2a2118;border:1px solid #4a3a1a;color:#f0c474;border-radius:10px;
+    padding:9px 11px;font-size:12px;margin-top:10px;display:none}
+  .warn.show{display:block}
+  .warn b{color:#ffd98a}
+
+  /* assumptions / details */
+  details{margin-top:18px;border:1px solid var(--line);border-radius:14px;background:var(--panel);overflow:hidden}
+  details summary{cursor:pointer;padding:15px 20px;font-weight:700;font-size:14px;list-style:none}
+  details summary::-webkit-details-marker{display:none}
+  details summary::before{content:"▸ ";color:var(--acc)}
+  details[open] summary::before{content:"▾ "}
+  .dbody{padding:0 20px 20px}
+  .assump{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+  @media(max-width:720px){.assump{grid-template-columns:1fr}}
+  .field label{font-size:12px;color:var(--mut);display:block;margin-bottom:5px}
+  table{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:var(--panel2);color:var(--mut);font-weight:600;position:sticky;top:0}
+  td{white-space:pre-line;color:#cfd4de}
+  .tscroll{max-height:460px;overflow:auto;border-radius:10px;border:1px solid var(--line)}
+  .foot{color:var(--mut);font-size:11.5px;margin-top:14px;line-height:1.7}
+  .pill{font-size:10px;padding:2px 7px;border-radius:999px;border:1px solid var(--line);color:var(--mut)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>💰 상용 AI 도입 견적 계산기 <span class="badge">2026.06 기준 · 3사 비교</span></h1>
+    <div class="sub">직무별로 인원과 선호 툴을 고르면 월/연 예상 비용이 자동 계산됩니다. (Anthropic · OpenAI · Google)</div>
+  </header>
+
+  <div class="grid">
+    <!-- LEFT -->
+    <div>
+      <div class="card">
+        <h2>👥 팀 구성</h2>
+        <div class="presets">
+          <div class="muted">빠른 추가 (직무 템플릿) — 클릭하면 행이 추가돼요</div>
+          <div class="toolbar" id="presets"></div>
+        </div>
+        <div class="rowhead" id="rowhead">
+          <div>직무</div><div>인원</div><div>선호 툴 / 플랜</div><div>사용강도</div><div></div>
+        </div>
+        <div id="rows"></div>
+        <div class="toolbar" style="margin-top:6px">
+          <button class="btn" onclick="addRow()">＋ 빈 직무 추가</button>
+          <button class="btn" onclick="clearRows()">전체 비우기</button>
+        </div>
+      </div>
+
+      <details>
+        <summary>⚙️ 계산 가정값 (사용량 추정 조정)</summary>
+        <div class="dbody">
+          <p class="muted">토큰·쿼리 기반 요금은 아래 가정으로 추정합니다. 회사 실제 패턴에 맞게 조정하세요.</p>
+          <div class="assump">
+            <div class="field"><label>가벼움 — 월 토큰(M)</label><input type="number" id="a_light" value="2" min="0" step="0.5"></div>
+            <div class="field"><label>보통 — 월 토큰(M)</label><input type="number" id="a_reg" value="8" min="0" step="0.5"></div>
+            <div class="field"><label>많음 — 월 토큰(M)</label><input type="number" id="a_heavy" value="25" min="0" step="0.5"></div>
+            <div class="field"><label>입력 토큰 비율(%) <span class="muted">나머지는 출력</span></label><input type="number" id="a_inratio" value="70" min="0" max="100"></div>
+            <div class="field"><label>월 근무일(쿼리형)</label><input type="number" id="a_workdays" value="22" min="1" max="31"></div>
+            <div class="field"><label>Gemini 쿼리당 토큰 환산</label><input type="number" id="a_qtok" value="10000" min="100" step="500"></div>
+          </div>
+          <p class="foot">· <b>사용강도 기준</b> — 적음/보통/많음 = 월 토큰 (위 입력값) · Gemini 쿼리 15 / 70 / 200 회·일<br>
+          · 토큰형(Claude API, Codex, AI Studio): (월 토큰 − 플랜 포함량) × 입출력 혼합단가<br>
+          · 쿼리형(Gemini): 강도별 일일 쿼리수가 포함 한도를 넘으면 초과분 × $0.10/쿼리<br>
+          · ChatGPT Enterprise 기본 채팅은 무제한(사용량 0), 고급기능은 크레딧 애드온으로 계산<br>
+          · <b>Gemini 쿼리 → 토큰 환산</b>: 텍스트 쿼리 1회당 입력+출력 합산 약 <b>1만 토큰</b>으로 가정(평균적인 질문/답변 1턴 기준). 이 값으로 쿼리형도 통합 토큰 합계에 포함합니다. (Deep Research·문서요약 등 무거운 작업은 실제로 더 많이 소모)</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>📋 원본 플랜·정책 비교표</summary>
+        <div class="dbody">
+          <div class="tscroll"><table id="reftable"></table></div>
+        </div>
+      </details>
+    </div>
+
+    <!-- RIGHT -->
+    <div>
+      <div class="card summary">
+        <h2>🧾 예상 비용</h2>
+        <div class="seg">
+          <button id="segM" class="on" onclick="setBilling('M')">월납</button>
+          <button id="segY" onclick="setBilling('Y')">연납(할인)</button>
+        </div>
+        <div class="muted" id="totLbl">월 합계</div>
+        <div class="total" id="totalM">$0 <small>/ 월</small></div>
+        <div id="byvendor"></div>
+        <div class="totline"><span>총 인원</span><span id="headcount">0명</span></div>
+        <div class="totline"><span id="tokLbl">월 제공 토큰</span><span id="tokTot">0</span></div>
+        <div class="totline tok"><span>└ 인당 제공 토큰</span><span id="tokPer">0</span></div>
+        <div class="totline"><span id="seatLbl">시트(구독)비 / 월</span><span id="seatTot">$0</span></div>
+        <div class="totline"><span id="usageLbl">사용량(토큰·쿼리)비 / 월</span><span id="usageTot">$0</span></div>
+        <div class="totline year"><span id="altLbl">연간 총액 (×12)</span><span id="totalY">$0</span></div>
+        <div class="muted" style="margin-top:8px;font-size:11px">≈ 원화 환산 <span id="krw">₩0</span> <span id="krwUnit">/월</span> <span class="pill">$1=1,380₩</span></div>
+        <div class="warn" id="warn"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot wrap" style="margin-top:8px">
+    ⚠️ 본 계산기는 공개 정책·커뮤니티 추정치 기반의 <b>참고용 견적</b>입니다. 엔터프라이즈 요금은 협상·계약 조건(최소 계정, 약정 기간, 사용량)에 따라 달라집니다.
+    Claude Enterprise·ChatGPT Enterprise 등은 실제 도입 시 영업팀 견적을 받아보세요.
+  </div>
+</div>
+
+<script>
+/* ---------------- PLAN CATALOG (from 정책비교표) ---------------- */
+// seatM: 월납 시트단가, seatY: 연납 시 월환산 시트단가
+// usage: 'token' | 'query' | 'none'
+// included: 토큰형 월 포함 토큰(M) / query형 일 포함 쿼리수
+// model: 토큰형 입력/출력 단가 ($/1M)
+const PLANS = {
+  // --- Anthropic ---
+  claude_ent:  {v:'Anthropic', name:'Claude Code/Chat — Enterprise', seatM:1.67, seatY:1.67, min:50,
+                usage:'token', included:0, model:{in:3,out:15}, note:'Chat·Cowork·Code 포함, 전량 API 단가 과금(Sonnet 기준)'},
+  claude_opus: {v:'Anthropic', name:'Claude Code — Enterprise (Opus)', seatM:1.67, seatY:1.67, min:50,
+                usage:'token', included:0, model:{in:5,out:25}, note:'고난도 코딩/추론, Opus 4.6 단가'},
+  claude_team: {v:'Anthropic', name:'Claude — Team Premium', seatM:125, seatY:100, min:5, max:150,
+                usage:'token', included:7.5, model:{in:3,out:15}, note:'월 약 750만 토큰 포함, 초과분 API 단가'},
+  // --- OpenAI ---
+  chatgpt_ent: {v:'OpenAI', name:'ChatGPT Enterprise (기본 채팅)', seatM:55, seatY:55, min:150,
+                usage:'none', note:'기본 채팅 무제한. 고급기능은 애드온 필요'},
+  chatgpt_a17: {v:'OpenAI', name:'ChatGPT Enterprise + 크레딧 애드온($17)', seatM:72, seatY:72, min:150,
+                usage:'token', included:3.7, model:{in:2.16,out:2.16}, note:'200크레딧/월(≈370만 토큰), Deep Research·이미지·Thinking'},
+  chatgpt_a30: {v:'OpenAI', name:'ChatGPT Enterprise + 크레딧 애드온($30)', seatM:85, seatY:85, min:150,
+                usage:'token', included:9.7, model:{in:2.16,out:2.16}, note:'500크레딧/월(≈970만 토큰)'},
+  codex:       {v:'OpenAI', name:'Codex (ChatGPT Enterprise 기반)', seatM:55, seatY:55, min:150,
+                usage:'token', included:0, model:{in:1.75,out:14}, note:'GPT-5.3-Codex 사용량 과금. 파워유저 월 $100~200 수준'},
+  // --- Google ---
+  gem_biz:   {v:'Google', name:'Gemini Enterprise Business', seatM:25, seatY:21, min:1, max:300,
+              usage:'query', included:120, qprice:0.10, note:'Chat·NotebookLM·에이전트빌더, 텍스트 120쿼리/일'},
+  gem_std:   {v:'Google', name:'Gemini Enterprise Standard (+Code Assist)', seatM:35, seatY:30, min:1, max:5000,
+              usage:'query', included:160, qprice:0.10, note:'Code Assist Standard 포함, 160쿼리/일'},
+  gem_plus:  {v:'Google', name:'Gemini Enterprise Plus', seatM:60, seatY:50, min:1, max:5000,
+              usage:'query', included:200, qprice:0.10, note:'200쿼리/일, Deep Research 10/일, Code Assist 포함'},
+  gem_front: {v:'Google', name:'Gemini Enterprise Frontline (애드온)', seatM:15, seatY:12.5, min:0,
+              usage:'query', included:40, qprice:0.10, note:'Standard/Plus 계약자만 애드온. 40쿼리/일'},
+  notebook:  {v:'Google', name:'NotebookLM Enterprise', seatM:9, seatY:9, min:15, max:5000,
+              usage:'none', note:'쿼리 500회/일, 추가과금 불가'},
+  antigrav_pro:  {v:'Google', name:'Antigravity (개인, AI Pro)', seatM:20, seatY:20, min:0,
+              usage:'agtoken', included:8, agrate:1.72, note:'월 약 800만 토큰, 초과 시 크레딧 충전'},
+  antigrav_ult:  {v:'Google', name:'Antigravity (개인, AI Ultra)', seatM:100, seatY:100, min:0,
+              usage:'agtoken', included:40, agrate:1.72, note:'월 약 4000만 토큰'},
+  antigrav_ultp: {v:'Google', name:'Antigravity (개인, AI Ultra Premium)', seatM:200, seatY:200, min:0,
+              usage:'agtoken', included:160, agrate:1.72, note:'월 약 1.6억 토큰'},
+  aistudio:  {v:'Google', name:'Google AI Studio (무료 + API)', seatM:0, seatY:0, min:0,
+              usage:'token', included:0, model:{in:1.5,out:9}, note:'스튜디오 무료, Gemini 3.5 Flash API 단가만 과금'},
+};
+
+const VCOLOR = {Anthropic:'#d97757', OpenAI:'#10a37f', Google:'#4285f4'};
+
+// 직무 템플릿: [표시명, 기본플랜, 기본강도, 기본인원]
+const PRESETS = [
+  ['👨‍💻 개발자', 'claude_ent', 'heavy', 80],
+  ['🧭 기획 / PM', 'chatgpt_ent', 'reg', 60],
+  ['🎨 디자이너', 'chatgpt_a17', 'reg', 30],
+  ['📣 마케팅 / 콘텐츠', 'gem_biz', 'reg', 50],
+  ['📊 데이터 분석', 'claude_ent', 'reg', 40],
+  ['🔎 리서치 / 문서', 'notebook', 'reg', 30],
+  ['🏢 일반 사무', 'gem_front', 'light', 200],
+];
+
+const INTENSITY = {light:'가벼움', reg:'보통', heavy:'많음'};
+// 쿼리형 강도별 일일 쿼리수
+const QDAY = {light:15, reg:70, heavy:200};
+
+let billing = 'M';
+let rows = [];
+
+/* ---------- build plan <select> with optgroups ---------- */
+function planOptions(sel){
+  const groups = {};
+  for(const [k,p] of Object.entries(PLANS)){ (groups[p.v]=groups[p.v]||[]).push([k,p]); }
+  let html='';
+  for(const v of ['Anthropic','OpenAI','Google']){
+    html+=`<optgroup label="${v}">`;
+    for(const [k,p] of groups[v]) html+=`<option value="${k}" ${k===sel?'selected':''}>${p.name}</option>`;
+    html+='</optgroup>';
+  }
+  return html;
+}
+
+// 사용강도 옵션 라벨 = 이름 (월 토큰 · Gemini 쿼리/일 기준)
+function levelLabel(k){
+  const tokId = k==='light'?'a_light':k==='reg'?'a_reg':'a_heavy';
+  return `${INTENSITY[k]} (${num(tokId)}M·${QDAY[k]}q/일)`;
+}
+
+function rowHTML(r,i){
+  return `<div class="row" data-i="${i}">
+    <div><div class="lbl">직무</div><input value="${r.name.replace(/"/g,'&quot;')}" oninput="upd(${i},'name',this.value)" placeholder="직무명"></div>
+    <div><div class="lbl">인원</div><input type="number" min="0" value="${r.count}" oninput="upd(${i},'count',this.value)"></div>
+    <div class="full"><div class="lbl">선호 툴 / 플랜</div><select onchange="upd(${i},'plan',this.value)">${planOptions(r.plan)}</select></div>
+    <div><div class="lbl">사용강도</div><select onchange="upd(${i},'level',this.value)">
+      ${Object.keys(INTENSITY).map(k=>`<option value="${k}" ${k===r.level?'selected':''}>${levelLabel(k)}</option>`).join('')}
+    </select></div>
+    <button class="del" onclick="delRow(${i})" title="삭제">✕</button>
+    <div class="rowcost" id="rc${i}"></div>
+  </div>`;
+}
+
+function render(){
+  document.getElementById('rows').innerHTML = rows.map(rowHTML).join('') ||
+    '<div class="muted" style="padding:20px;text-align:center">위 템플릿을 눌러 직무를 추가하세요.</div>';
+  calc();
+}
+
+/* ---------- cost engine ---------- */
+function num(id){return parseFloat(document.getElementById(id).value)||0;}
+function blended(model){const inr=num('a_inratio')/100; return inr*model.in+(1-inr)*model.out;}
+
+function rowUsage(p,level){
+  if(p.usage==='none') return 0;
+  if(p.usage==='token'){
+    const tok = num(level==='light'?'a_light':level==='reg'?'a_reg':'a_heavy');
+    return Math.max(0,tok-(p.included||0))*blended(p.model);
+  }
+  if(p.usage==='agtoken'){
+    const tok = num(level==='light'?'a_light':level==='reg'?'a_reg':'a_heavy');
+    return Math.max(0,tok-(p.included||0))*(p.agrate||1.72);
+  }
+  if(p.usage==='query'){
+    const q=QDAY[level]; const over=Math.max(0,q-p.included);
+    return over*num('a_workdays')*p.qprice;
+  }
+  return 0;
+}
+
+function calc(){
+  let seatTot=0, usageTot=0, head=0, vend={}, tokTot=0, qTot=0;
+  let minWarn=[];
+  rows.forEach((r,i)=>{
+    const p=PLANS[r.plan]; const n=Math.max(0,parseInt(r.count)||0);
+    const seat=(billing==='Y'?p.seatY:p.seatM)*n;
+    const use=rowUsage(p,r.level)*n;
+    seatTot+=seat; usageTot+=use; head+=n;
+    vend[p.v]=(vend[p.v]||0)+seat+use;
+    // 토큰/쿼리 제공량 집계
+    let rowTok=0, rowQ=0;
+    if(p.usage==='token'||p.usage==='agtoken'){
+      rowTok = num(r.level==='light'?'a_light':r.level==='reg'?'a_reg':'a_heavy')*n; // M
+      tokTot+=rowTok;
+    } else if(p.usage==='query'){
+      rowQ = QDAY[r.level]*num('a_workdays')*n;
+      qTot+=rowQ;
+      rowTok = rowQ*num('a_qtok')/1e6;  // 쿼리 → 토큰(M) 환산
+      tokTot+=rowTok;
+    }
+    const rc=document.getElementById('rc'+i);
+    if(rc){
+      let usageStr = p.usage==='query' ? `${fmt(rowQ)}쿼리 (≈${fmtTok(rowTok)})` :
+                     (p.usage==='none' ? '채팅 무제한' : `${fmtTok(rowTok)}`);
+      rc.textContent = n>0 ? `${p.name} · ${n}명 · ${usageStr} → 시트 $${fmt(seat)} + 사용 $${fmt(use)} = $${fmt(seat+use)}/월` : '';
+    }
+  });
+  // 연납 탭이면 연 토큰, 월납 탭이면 월 토큰 표시
+  const tokDisp = billing==='Y' ? tokTot*12 : tokTot;
+  document.getElementById('tokLbl').textContent = billing==='Y' ? '연 제공 토큰' : '월 제공 토큰';
+  document.getElementById('tokTot').textContent = tokTot>0 ? fmtTok(tokDisp) : '—';
+  document.getElementById('tokPer').textContent = (tokTot>0 && head>0) ? fmtTok(tokDisp/head) : '—';
+  // aggregate min-seat warnings per plan
+  const planCounts={};
+  rows.forEach(r=>{planCounts[r.plan]=(planCounts[r.plan]||0)+(parseInt(r.count)||0);});
+  for(const [k,c] of Object.entries(planCounts)){
+    const p=PLANS[k];
+    if(c>0 && p.min>0 && c<p.min) minWarn.push(`${p.name}: 최소 ${p.min}계정 (현재 ${c}명)`);
+    if(p.max && c>p.max) minWarn.push(`${p.name}: 최대 ${p.max}계정 초과 (현재 ${c}명)`);
+  }
+
+  const monthly=seatTot+usageTot;
+  const Y = billing==='Y';            // 연납 탭이면 모든 금액을 연 단위로 표시
+  const mul = Y?12:1;
+  const u = Y?'년':'월';              // 단위 접미사
+  const total = monthly*mul;
+
+  document.getElementById('totLbl').textContent = Y?'연 합계':'월 합계';
+  document.getElementById('totalM').innerHTML=`$${fmt(total)} <small>/ ${u}</small>`;
+  document.getElementById('seatLbl').textContent=`시트(구독)비 / ${u}`;
+  document.getElementById('usageLbl').textContent=`사용량(토큰·쿼리)비 / ${u}`;
+  document.getElementById('seatTot').textContent='$'+fmt(seatTot*mul);
+  document.getElementById('usageTot').textContent='$'+fmt(usageTot*mul);
+  // 하단 초록 총액줄: 선택한 단위 그대로
+  document.getElementById('altLbl').textContent = Y?'연 합계':'월 합계';
+  document.getElementById('totalY').textContent='$'+fmt(total);
+  document.getElementById('headcount').textContent=head+'명';
+  document.getElementById('krw').textContent='₩'+fmt(total*1380,0);
+  document.getElementById('krwUnit').textContent='/'+u;
+
+  document.getElementById('byvendor').innerHTML=Object.keys(vend).length?
+    Object.entries(vend).map(([v,a])=>`<div class="vend"><span class="dot" style="background:${VCOLOR[v]}"></span>
+      <span style="flex:1">${v}</span><b>$${fmt(a*mul)}/${u}</b></div>`).join(''):'';
+
+  const w=document.getElementById('warn');
+  if(minWarn.length){w.classList.add('show');w.innerHTML='<b>⚠️ 계정 수 확인</b><br>'+minWarn.join('<br>');}
+  else w.classList.remove('show');
+}
+
+function fmt(n,d=0){ return Number(n).toLocaleString('en-US',{maximumFractionDigits:d,minimumFractionDigits:0}); }
+// m = 백만(M) 단위 토큰량 → 사람이 읽는 문자열
+function fmtTok(m){
+  if(m<=0) return '0 토큰';
+  if(m>=100) return fmt(m/100,1)+'억 토큰';      // 100M = 1억
+  if(m>=10)  return fmt(m,0)+'백만 토큰';
+  return fmt(m,1)+'백만 토큰';                    // 소수점 1자리(인당 등 작은 값)
+}
+
+/* ---------- mutations ---------- */
+function upd(i,k,v){ rows[i][k]= k==='count'?v:v; if(k==='name'||k==='count') calc(); else render(); }
+function addRow(name='새 직무',plan='chatgpt_ent',level='reg',count=1){ rows.push({name,plan,level,count}); render(); }
+function delRow(i){ rows.splice(i,1); render(); }
+function clearRows(){ rows=[]; render(); }
+function setBilling(b){ billing=b;
+  document.getElementById('segM').classList.toggle('on',b==='M');
+  document.getElementById('segY').classList.toggle('on',b==='Y');
+  calc(); }
+
+/* ---------- presets + reactivity ---------- */
+document.getElementById('presets').innerHTML = PRESETS.map((p,i)=>
+  `<button class="chip" onclick="addRow('${p[0]}','${p[1]}','${p[2]}',${p[3]})">${p[0]}</button>`).join('');
+['a_light','a_reg','a_heavy','a_inratio','a_workdays','a_qtok'].forEach(id=>
+  document.getElementById(id).addEventListener('input',render));  // 가정값 변경 시 강도 라벨도 갱신
+
+/* ---------- reference table ---------- */
+const REF=[
+  ['Anthropic','Claude Enterprise','$20/연','50','없음(사용량)','Chat·Cowork·Code','전량 API 단가. Sonnet 입$3/출$15, Opus 입$5/출$25, Haiku 입$1/출$5'],
+  ['Anthropic','Claude Team Premium','$125/월·$100/월(연)','5~150','약 500~1000만 토큰/월','Chat·Cowork·Code','초과분 API 단가'],
+  ['OpenAI','ChatGPT Enterprise','$50~60/월(협상)','150','기본 채팅 무제한','ChatGPT','—'],
+  ['OpenAI','+크레딧 애드온','+$17/월(200cr)·+$30/월(500cr)','150','200cr≈370만·500cr≈970만 토큰','고급기능·Codex','$0.04/크레딧'],
+  ['OpenAI','Codex(Enterprise)','사용량 기반','150','없음(사용량)','Codex','GPT-5.3-Codex 입$1.75/출$14. 파워유저 월$100~200'],
+  ['Google','Gemini Ent. Business','$25/월·$21(연)','1~300','텍스트 120쿼리/일','Chat·NotebookLM·에이전트','텍스트 $0.10/쿼리, 이미지 $0.02, Deep Research $4/쿼리'],
+  ['Google','Gemini Ent. Standard','$35/월·$30(연)','1~5000','160쿼리/일','+Code Assist Std','쿼리 기반'],
+  ['Google','Gemini Ent. Plus','$60/월·$50(연)','1~5000','200쿼리/일, DR 10/일','+Code Assist','쿼리 기반'],
+  ['Google','Gemini Frontline','$15/월·$12.5(연)','애드온 전용','40쿼리/일','Chat·NotebookLM','Std/Plus 계약자만'],
+  ['Google','NotebookLM Enterprise','$9/월','15~5000','쿼리 500/일','NotebookLM','추가과금 불가'],
+  ['Google','Antigravity(개인)','Pro $20·Ultra $100·UltraP $200','개인구독','Pro 800만·Ultra 4000만·UltraP 1.6억 토큰/월','Antigravity','초과 시 크레딧 $25/2500cr'],
+  ['Google','AI Studio','무료+API','제한없음','1000요청/일','AI Studio','Gemini 3.5 Flash 입$1.5/출$9'],
+];
+document.getElementById('reftable').innerHTML =
+  '<thead><tr><th>구분</th><th>플랜</th><th>계정당 요금</th><th>최소계정</th><th>포함량</th><th>포함서비스</th><th>추가 과금</th></tr></thead><tbody>'+
+  REF.map(r=>`<tr><td style="color:${VCOLOR[r[0]]||'#ccc'}">${r[0]}</td>`+r.slice(1).map(c=>`<td>${c}</td>`).join('')+'</tr>').join('')+'</tbody>';
+
+/* ---------- seed sample team ---------- */
+addRow('👨‍💻 개발자','claude_ent','heavy',80);
+addRow('🧭 기획 / PM','chatgpt_ent','reg',60);
+addRow('🎨 디자이너','chatgpt_a17','reg',30);
+addRow('📣 마케팅 / 콘텐츠','gem_biz','reg',50);
+addRow('🏢 일반 사무','gem_front','light',200);
+</script>
+</body>
+</html>
